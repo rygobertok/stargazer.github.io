@@ -1,0 +1,1153 @@
+<!doctype html>
+<!--!
+  Stargazer
+  Copyright (c) Cliff Pyles
+  Released under the MIT License: https://opensource.org/license/mit
+  Original: https://codepen.io/editor/cliffpyles/pen/01a163ce-0f11-718c-bebc-68c338f10030
+-->
+<html lang="en">
+  <head>
+<script type="importmap">
+{
+  "imports": {
+    "astronomy-engine": "https://esm.sh/astronomy-engine@2.1.19",
+    "astronomy-engine/": "https://esm.sh/astronomy-engine@2.1.19/",
+    "gsap": "https://esm.sh/gsap@3.15.0",
+    "gsap/": "https://esm.sh/gsap@3.15.0/",
+    "three": "https://esm.sh/three@0.186.1",
+    "three/": "https://esm.sh/three@0.186.1/"
+  }
+}
+</script>
+
+    <meta charset="utf-8" />
+    <meta name="author" content="Cliff Pyles" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+    <title>Stargazer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&family=Jost:wght@300;400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    
+  </head>
+  <body>
+    <main class="scene" data-ready="false">
+      <canvas
+        class="sky"
+        tabindex="0"
+        role="img"
+        aria-label="The night sky seen from the ground. Drag or use the arrow keys to look around."
+      ></canvas>
+
+      <div class="compass" aria-hidden="true"></div>
+      <div class="heading" aria-hidden="true">
+        <div class="heading-strip"><div class="heading-ticks"></div></div>
+        <span class="heading-readout"></span>
+      </div>
+      <div class="sky-labels" aria-hidden="true"></div>
+      <span class="star-ring" hidden></span>
+      <div class="eyepiece" aria-hidden="true"></div>
+
+      <section class="star-card" aria-label="Star details" hidden>
+        <p class="star-name"></p>
+        <p class="star-designation"></p>
+        <dl class="star-facts"></dl>
+        <p class="star-seen"></p>
+      </section>
+
+      <section
+        class="figure-card"
+        aria-label="Constellation"
+        aria-live="polite"
+        hidden
+      >
+        <p class="figure-kind">Constellation</p>
+        <p class="figure-name"></p>
+        <p class="figure-where"></p>
+        <div class="figure-near"></div>
+        <p class="figure-hint">Tap it to keep this open</p>
+      </section>
+
+      <!-- Along the top: where and when (with the way to other places), and tonight's timeline. -->
+      <div class="hud-top">
+        <div class="hud-place">
+          <p class="conditions" aria-live="polite">
+            <span class="conditions-place"></span>
+            <span class="conditions-time"></span>
+            <span class="conditions-heading" aria-hidden="true"></span>
+            <span class="conditions-sky">
+              <span class="darkness" aria-hidden="true"
+                ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                ><i></i
+              ></span>
+              <span class="darkness-label"></span>
+              <span class="conditions-stars"></span>
+              <button
+                class="catalog-button"
+                type="button"
+                aria-label="Star catalog in use"
+              ></button>
+              <span class="conditions-moon"></span>
+            </span>
+            <span class="loading" data-show="false">
+              <span class="loading-label"></span>
+              <span class="loading-bar" aria-hidden="true"></span>
+            </span>
+          </p>
+          <div class="hud-chips">
+            <button
+              class="chip place-button"
+              type="button"
+              aria-label="Choose another place (M)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+                <path d="M3.6 9h16.8" />
+                <path d="M3.6 15h16.8" />
+                <path d="M11.5 3a17 17 0 0 0 0 18" />
+                <path d="M12.5 3a17 17 0 0 1 0 18" />
+              </svg>
+              <span>Other places</span>
+              <kbd>M</kbd>
+            </button>
+            <button
+              class="chip menu-button"
+              type="button"
+              popovertarget="menu-panel"
+              aria-label="Menu: how to play, assists and logbook (Esc)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6h16" />
+                <path d="M4 12h16" />
+                <path d="M4 18h16" />
+              </svg>
+              <span>Menu</span>
+              <kbd>Esc</kbd>
+            </button>
+            <button
+              class="chip help-button"
+              type="button"
+              popovertarget="help-panel"
+              aria-label="Help: how the sky and the game work (?)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                <path d="M12 17v.01" />
+                <path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4" />
+              </svg>
+              <span>Help</span>
+              <kbd>?</kbd>
+            </button>
+          </div>
+        </div>
+        <section class="timeline" aria-label="Time tonight">
+          <header class="timeline-head">
+            <button
+              class="timeline-date"
+              type="button"
+              popovertarget="time-panel"
+              aria-label="Date and time"
+            ></button>
+            <span class="timeline-night"></span>
+          </header>
+          <div class="timeline-track">
+            <span class="timeline-moon" aria-hidden="true"></span>
+            <input
+              class="night-slider"
+              type="range"
+              aria-label="Time of night"
+            />
+          </div>
+          <div class="night-scale" aria-hidden="true">
+            <span class="night-scale-start"></span>
+            <span>Midnight</span>
+            <span class="night-scale-end"></span>
+          </div>
+        </section>
+      </div>
+
+      <!-- Why the sky looks the way it does, when that is not obvious, and what to do about it. -->
+      <div class="sky-banner" role="status" hidden>
+        <span class="sky-banner-text"></span>
+        <button class="sky-banner-action" type="button"></button>
+        <button class="sky-banner-close" type="button" aria-label="Dismiss">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12" />
+            <path d="M18 6l-12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- The field game: the target being hunted, and why it can or cannot be seen. -->
+      <section class="hunt" aria-label="Field game" aria-live="polite" hidden>
+        <p class="hunt-head">
+          <span class="hunt-label">Field game</span>
+          <span class="hunt-score"></span>
+        </p>
+        <p class="hunt-name"></p>
+        <p class="hunt-status"></p>
+        <figure class="hunt-picture" hidden>
+          <img alt="" loading="lazy" decoding="async" />
+          <figcaption></figcaption>
+        </figure>
+        <button class="hunt-change" type="button">Logbook <kbd>L</kbd></button>
+      </section>
+      <span class="observe-ring" aria-hidden="true"></span>
+      <span class="points-rise" aria-hidden="true" data-show="false"></span>
+
+      <!-- A telescope's eyepieces. -->
+      <div class="power" role="group" aria-label="Eyepiece" hidden>
+        <button class="power-down" type="button" aria-label="Lower power (−)">
+          −
+        </button>
+        <span class="power-value" aria-live="polite"></span>
+        <button class="power-up" type="button" aria-label="Higher power (+)">
+          +
+        </button>
+      </div>
+
+      <!-- Drawing constellations: star to star, then name and save, or identify. -->
+      <span class="draw-snap" aria-hidden="true"></span>
+      <div class="draw-bar" role="toolbar" aria-label="Drawing" hidden>
+        <span class="draw-count" aria-live="polite"></span>
+        <button class="draw-undo" type="button">Undo <kbd>⌫</kbd></button>
+        <button class="draw-lift" type="button">
+          Lift pen <kbd>Enter</kbd>
+        </button>
+        <input
+          class="draw-name"
+          type="text"
+          maxlength="40"
+          placeholder="Name it"
+          aria-label="Name for this figure"
+        />
+        <button class="draw-save" type="button">Save</button>
+        <button class="draw-close" type="button">Done <kbd>C</kbd></button>
+      </div>
+
+      <!-- The guides, each a keyed switch. -->
+      <nav class="guides-rail" aria-label="Sky guides">
+        <span class="rail-label">Guides</span>
+      </nav>
+
+      <!-- Along the bottom: the ways of seeing as a hotbar, and the lamp, sound and sky. -->
+      <div class="hud-bottom">
+        <!-- Where to go, the menu and help, at the bottom left. -->
+        <nav class="toolbar toolbar-left" aria-label="Game">
+          <button
+            class="tool place-button"
+            type="button"
+            aria-label="Choose another place (M)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+              <path d="M3.6 9h16.8" />
+              <path d="M3.6 15h16.8" />
+              <path d="M11.5 3a17 17 0 0 0 0 18" />
+              <path d="M12.5 3a17 17 0 0 1 0 18" />
+            </svg>
+            <span class="tool-name">Places</span>
+            <span class="tool-state">M</span>
+          </button>
+          <button
+            class="tool menu-button"
+            type="button"
+            popovertarget="menu-panel"
+            aria-label="Menu: how to play, assists, star catalog and logbook (Esc)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16" />
+              <path d="M4 12h16" />
+              <path d="M4 18h16" />
+            </svg>
+            <span class="tool-name">Menu</span>
+            <span class="tool-state">Esc</span>
+          </button>
+          <button
+            class="tool help-button"
+            type="button"
+            popovertarget="help-panel"
+            aria-label="Help: how the sky and the game work (?)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+              <path d="M12 17v.01" />
+              <path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4" />
+            </svg>
+            <span class="tool-name">Help</span>
+            <span class="tool-state">?</span>
+          </button>
+        </nav>
+        <span class="hotbar-label" aria-hidden="true"></span>
+        <nav class="hotbar" aria-label="Ways of seeing"></nav>
+        <nav class="toolbar toolbar-right" aria-label="Sky controls">
+          <button
+            class="tool lamp-button"
+            type="button"
+            aria-label="Red headlamp: off (F)"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 10.5c0 -1.4 1.1 -2.5 2.5 -2.5h3a2.5 2.5 0 0 1 0 5h-3c-1.4 0 -2.5 -1.1 -2.5 -2.5z"
+              />
+              <path d="M14 10.5h7" />
+              <path d="M13.5 7l6 -2.5" />
+              <path d="M13.5 14l6 2.5" />
+            </svg>
+            <span class="tool-name">Lamp</span>
+            <span class="tool-state">Off</span>
+          </button>
+          <button
+            class="tool sound-button"
+            type="button"
+            aria-label="Sounds of this place"
+            aria-pressed="false"
+          >
+            <svg class="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 8a5 5 0 0 1 0 8" />
+              <path d="M17.7 5a9 9 0 0 1 0 14" />
+              <path
+                d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"
+              />
+            </svg>
+            <svg class="sound-off" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M15 8a5 5 0 0 1 1.912 4.934m-1.377 2.602a5 5 0 0 1 -.535 .464"
+              />
+              <path
+                d="M17.7 5a9 9 0 0 1 2.362 11.086m-1.676 2.299a9 9 0 0 1 -.686 .615"
+              />
+              <path
+                d="M9.069 5.054l.431 -.554a.8 .8 0 0 1 1.5 .5v2m0 4v8a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l1.294 -1.664"
+              />
+              <path d="M3 3l18 18" />
+            </svg>
+            <span class="tool-name">Sound</span>
+            <span class="tool-state">Off</span>
+          </button>
+          <button
+            class="tool draw-button"
+            type="button"
+            aria-label="Draw constellations (C)"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 18l5 -7l5 3l4 -8" />
+              <path d="M4 18a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+              <path d="M9 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+              <path d="M14 14a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+              <path d="M18 6a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+            </svg>
+            <span class="tool-name">Draw</span>
+            <span class="tool-state">C</span>
+          </button>
+          <button
+            class="tool stars-button"
+            type="button"
+            aria-label="Star catalog in use"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3l2 5l5 .5l-3.8 3.4l1.2 5.1l-4.4 -2.7l-4.4 2.7l1.2 -5.1l-3.8 -3.4l5 -.5z"
+              />
+              <path d="M19 18h.01" />
+              <path d="M5 19h.01" />
+              <path d="M20 5h.01" />
+            </svg>
+            <span class="tool-name">Stars</span>
+            <span class="tool-state"></span>
+          </button>
+          <button
+            class="tool sky-button"
+            type="button"
+            popovertarget="sky-panel"
+            aria-label="Sky conditions"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878"
+              />
+            </svg>
+            <span class="tool-name">Clear</span>
+            <span class="tool-state"></span>
+          </button>
+        </nav>
+      </div>
+
+      <p class="status" role="status"></p>
+
+      <span class="crosshair" aria-hidden="true"></span>
+      <p class="look-hint" aria-live="polite"></p>
+      <p class="walk-hint" aria-live="polite"></p>
+      <div class="joystick" aria-hidden="true">
+        <span class="joystick-knob"></span>
+      </div>
+
+      <!-- Choosing where to stand: the night Earth and a search, in a dialog over the game. -->
+      <dialog class="place-dialog" aria-labelledby="place-title" tabindex="-1">
+        <header class="place-head">
+          <div>
+            <h2 id="place-title" class="place-title">Where to stargaze</h2>
+            <p class="place-intro">
+              Spin the night Earth and tap a place, or search for one. The
+              darker the land, the more stars.
+            </p>
+          </div>
+          <button
+            class="icon-button back-button"
+            type="button"
+            aria-label="Back to the sky"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12" />
+              <path d="M18 6l-12 12" />
+            </svg>
+          </button>
+        </header>
+        <div class="search">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+            <path d="M21 21l-6 -6" />
+          </svg>
+          <input
+            class="search-input"
+            type="search"
+            role="combobox"
+            aria-label="Search for a place or coordinates"
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-controls="search-results"
+            placeholder="Search a place or coordinates"
+            autocomplete="off"
+            enterkeyhint="search"
+          />
+          <ul
+            id="search-results"
+            class="search-results"
+            role="listbox"
+            aria-label="Places"
+            hidden
+          ></ul>
+        </div>
+        <div class="globe-stage">
+          <canvas
+            class="globe-canvas"
+            aria-label="The Earth at night. Drag to spin it, tap to zoom in, pinch or scroll to zoom."
+          ></canvas>
+          <div class="pins"></div>
+          <div class="target" hidden>
+            <p class="target-name"></p>
+            <p class="target-region"></p>
+            <p class="target-sky"></p>
+            <button class="text-button stargaze-button" type="button">
+              Stargaze here
+            </button>
+          </div>
+          <p class="globe-hint">Tap the globe to zoom in · drag to spin</p>
+          <div class="zoom">
+            <button
+              class="icon-button zoom-in"
+              type="button"
+              aria-label="Zoom in"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5l0 14" />
+                <path d="M5 12l14 0" />
+              </svg>
+            </button>
+            <button
+              class="icon-button zoom-out"
+              type="button"
+              aria-label="Zoom out"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12l14 0" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <footer class="place-foot" hidden>
+          <p class="place-start"></p>
+          <button class="text-button stay-button" type="button">
+            Start here
+          </button>
+        </footer>
+      </dialog>
+
+      <div class="veil" aria-hidden="true"></div>
+
+      <section id="time-panel" class="panel" popover aria-label="Time">
+        <header class="panel-head">
+          <output class="time-clock"></output>
+          <span class="time-date"></span>
+        </header>
+        <label class="field">
+          <span>Date</span>
+          <input class="time-date-input" type="date" />
+        </label>
+        <div class="panel-actions">
+          <button class="text-button" type="button" data-time="tonight">
+            Tonight
+          </button>
+          <button class="text-button" type="button" data-time="now">Now</button>
+        </div>
+      </section>
+
+      <section
+        id="instrument-panel"
+        class="panel"
+        popover
+        aria-label="Star set"
+      >
+        <div class="offer" hidden>
+          <p class="offer-text"></p>
+          <div class="offer-progress" hidden>
+            <span class="offer-bar"></span>
+          </div>
+          <div class="panel-actions offer-actions">
+            <button class="text-button offer-accept" type="button">
+              Download
+            </button>
+            <button class="text-button offer-decline" type="button">
+              Not now
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="guides-panel"
+        class="panel"
+        popover
+        aria-label="Planets tonight"
+      >
+        <p class="panel-label">Planets tonight</p>
+        <ul class="planet-list" aria-label="Planets tonight"></ul>
+      </section>
+
+      <section
+        id="menu-panel"
+        class="panel menu"
+        popover
+        aria-label="Menu"
+        data-centered
+      >
+        <header class="panel-head">
+          <span class="panel-label">Stargazer</span>
+          <span class="menu-score"></span>
+        </header>
+        <div class="menu-columns">
+          <div class="menu-column">
+            <fieldset class="modes">
+              <legend class="panel-label">How to play</legend>
+              <label class="mode">
+                <input type="radio" name="mode" value="explore" />
+                <span class="mode-name">Explore</span>
+                <span class="mode-about"
+                  >The whole sky as it is, with guides that name what you
+                  see.</span
+                >
+              </label>
+              <label class="mode">
+                <input type="radio" name="mode" value="game" />
+                <span class="mode-name">Field game</span>
+                <span class="mode-about"
+                  >No guides. Find each target in the real sky, weather and
+                  land, and log it for points.</span
+                >
+              </label>
+            </fieldset>
+            <fieldset class="assists">
+              <legend class="panel-label">Assists</legend>
+              <label class="assist"
+                ><input type="checkbox" name="trees" /><span
+                  >No trees</span
+                ></label
+              >
+              <label class="assist"
+                ><input type="checkbox" name="mountains" /><span
+                  >Flat horizon</span
+                ></label
+              >
+              <label class="assist"
+                ><input type="checkbox" name="clouds" /><span
+                  >Clear skies</span
+                ></label
+              >
+              <label class="assist"
+                ><input type="checkbox" name="steady" /><span
+                  >Steady optics</span
+                ></label
+              >
+              <p class="assist-cost"></p>
+            </fieldset>
+            <section class="charts" aria-label="Your figures">
+              <p class="panel-label">Your figures</p>
+              <ul class="chart-list"></ul>
+              <p class="charts-empty">
+                Draw from star to star with <strong>Draw</strong> (C) to keep
+                your own figures in the sky.
+              </p>
+            </section>
+          </div>
+          <div class="menu-column">
+            <section class="catalogs" aria-label="Star catalog">
+              <p class="panel-label">Star catalog</p>
+              <ul class="catalog-list"></ul>
+              <p class="catalog-note">
+                Each catalog adds fainter stars to the ones before it. A
+                download lasts until the page is closed.
+              </p>
+            </section>
+            <section class="awards" aria-label="Awards">
+              <p class="panel-label">Awards</p>
+              <ul class="award-list"></ul>
+            </section>
+          </div>
+          <div class="menu-column menu-progress">
+            <section class="logbook" aria-label="Logbook">
+              <p class="panel-label">Logbook</p>
+              <p class="logbook-summary"></p>
+              <ul class="logbook-list"></ul>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="help-panel"
+        class="panel help"
+        popover
+        aria-label="Help"
+        data-centered
+      >
+        <header class="panel-head">
+          <span class="panel-label">How Stargazer works</span>
+          <button
+            class="help-close"
+            type="button"
+            popovertarget="help-panel"
+            popovertargetaction="hide"
+            aria-label="Close help"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12" />
+              <path d="M18 6l-12 12" />
+            </svg>
+          </button>
+        </header>
+        <nav class="help-tabs" role="tablist" aria-label="Help topics">
+          <button
+            role="tab"
+            type="button"
+            aria-controls="help-sky"
+            aria-selected="true"
+          >
+            The sky
+          </button>
+          <button
+            role="tab"
+            type="button"
+            aria-controls="help-numbers"
+            aria-selected="false"
+          >
+            The numbers
+          </button>
+          <button
+            role="tab"
+            type="button"
+            aria-controls="help-seeing"
+            aria-selected="false"
+          >
+            Seeing more
+          </button>
+          <button
+            role="tab"
+            type="button"
+            aria-controls="help-catalogs"
+            aria-selected="false"
+          >
+            Star catalogs
+          </button>
+          <button
+            role="tab"
+            type="button"
+            aria-controls="help-playing"
+            aria-selected="false"
+          >
+            Playing
+          </button>
+          <button
+            role="tab"
+            type="button"
+            aria-controls="help-controls"
+            aria-selected="false"
+          >
+            Controls
+          </button>
+        </nav>
+
+        <article id="help-sky" class="help-page" role="tabpanel">
+          <h2>A real sky, from where you stand</h2>
+          <p>
+            Every star is a real star, in its real place for the place, date and
+            time at the top. What you can see depends on everything that decides
+            it outdoors:
+          </p>
+          <ul>
+            <li>
+              <strong>Darkness.</strong> Daylight and twilight hide all but the
+              brightest stars. Full dark starts when the Sun is 18° below the
+              horizon; the timeline at the top right shows when.
+            </li>
+            <li>
+              <strong>Light pollution.</strong> Town and city lights brighten
+              the whole sky and wash out faint stars. Far from towns, thousands
+              more appear.
+            </li>
+            <li>
+              <strong>The Moon.</strong> A bright Moon lights the sky like a
+              small town. The timeline's band shows when it is up.
+            </li>
+            <li>
+              <strong>The air.</strong> Haze, humidity and clouds dim or hide
+              the stars. Near the horizon, light crosses far more air, so stars
+              there look fainter.
+            </li>
+            <li>
+              <strong>The land.</strong> Mountains and trees block the low sky.
+              Walk to higher ground or a clearing to see past them.
+            </li>
+          </ul>
+          <p>
+            The banner under the heading says what is hiding the stars right
+            now, and what you could do about it.
+          </p>
+        </article>
+
+        <article id="help-numbers" class="help-page" role="tabpanel" hidden>
+          <h2>Reading the numbers</h2>
+          <h3>Magnitude: how bright a star looks</h3>
+          <p>
+            Astronomers measure brightness in <strong>magnitudes</strong>, and
+            the scale runs backwards:
+            <strong>bigger numbers are fainter</strong>. Each step of 1 is about
+            2.5 times fainter, so 5 steps is 100 times.
+          </p>
+          <dl class="help-scale">
+            <dt>−12.7</dt>
+            <dd>Full Moon</dd>
+            <dt>−4.5</dt>
+            <dd>Venus at its brightest</dd>
+            <dt>−1.5</dt>
+            <dd>Sirius, the brightest star</dd>
+            <dt>0</dt>
+            <dd>Vega</dd>
+            <dt>2</dt>
+            <dd>Polaris, the North Star</dd>
+            <dt>6.5</dt>
+            <dd>Faintest stars the eye sees in a truly dark sky</dd>
+            <dt>10</dt>
+            <dd>Faintest with good binoculars</dd>
+            <dt>12–14</dt>
+            <dd>Faintest with a small to large telescope</dd>
+          </dl>
+          <h3>NELM and LM: the faintest star you can see</h3>
+          <p>
+            The <strong>limiting magnitude</strong> is the faintest star the sky
+            and your eyes or instrument show straight overhead.
+            <strong>NELM</strong> (naked-eye limiting magnitude) is for the eye
+            alone; <strong>LM</strong> is with binoculars or a telescope. "LM
+            12.1" means stars down to magnitude 12.1 show. Each slot on the
+            hotbar shows its own.
+          </p>
+          <h3>mag/arcsec²: how dark the sky is</h3>
+          <p>
+            Sky brightness is measured in
+            <strong>magnitudes per square arcsecond</strong>, the glow of a tiny
+            patch of sky. Here too <strong>bigger is darker</strong>. Amateurs
+            measure it with a Sky Quality Meter.
+          </p>
+          <dl class="help-scale">
+            <dt>17–18</dt>
+            <dd>City centre</dd>
+            <dt>19–20</dt>
+            <dd>Suburbs</dd>
+            <dt>21–21.5</dt>
+            <dd>Countryside</dd>
+            <dt>21.7–22</dt>
+            <dd>The darkest places on Earth</dd>
+          </dl>
+          <h3>Where things are in the sky</h3>
+          <p>
+            The heading strip at the top gives the direction you face as a
+            compass bearing (0° north, 90° east, 180° south, 270° west) and how
+            high you look, in degrees above the horizon (90° is straight up).
+          </p>
+        </article>
+
+        <article id="help-seeing" class="help-page" role="tabpanel" hidden>
+          <h2>Seeing more</h2>
+          <ul>
+            <li>
+              <strong>Naked eye</strong> shows the whole sky, the constellations
+              and the Milky Way.
+            </li>
+            <li>
+              <strong>Handheld binoculars</strong> (10×50) gather far more light
+              than the eye; they are best for star clusters, the Milky Way and
+              the Moon. They sway a little in your hands.
+            </li>
+            <li>
+              <strong>Tripod binoculars</strong> (25×100) reach fainter and hold
+              steady. Galaxies and nebulae begin to show.
+            </li>
+            <li>
+              <strong>Telescopes</strong> show the planets' discs, Saturn's
+              rings, nebulae and galaxies, in a small field. Change the eyepiece
+              with <kbd>+</kbd> and <kbd>−</kbd> (or the wheel): more power
+              makes things bigger but the field smaller and the sky darker.
+            </li>
+          </ul>
+          <p>
+            Tripods and telescopes are set up where you stand, on dry, flat,
+            open ground. Aim them by dragging or with the arrow keys. A
+            telescope's field is tiny, so find the target first with its
+            <strong>red-dot finder</strong> (<kbd>R</kbd>), which shows where
+            the tube points, then look through the eyepiece.
+          </p>
+          <p>
+            Faint glows look grey, not colored: at night the eye sees little
+            color. Wind and unsteady air blur fine detail at high power.
+          </p>
+        </article>
+
+        <article id="help-catalogs" class="help-page" role="tabpanel" hidden>
+          <h2>Star catalogs</h2>
+          <p>
+            A star catalog is a list of stars with their positions and
+            brightness, measured by observatories and space missions. The sky is
+            drawn from one:
+          </p>
+          <ul>
+            <li>
+              <strong>Naked-eye stars</strong>: about 26,000 stars to magnitude
+              7.5, from the HYG Database. Built in; plenty for the eye.
+            </li>
+            <li>
+              <strong>Full star set</strong>: 2.5 million more, to about
+              magnitude 11.5, from Tycho-2 (ESA's Hipparcos mission). A 20 MB
+              download, for binoculars and telescopes.
+            </li>
+            <li>
+              <strong>Deep star set</strong>: about 17 million more, from ESA's
+              Gaia mission, for the large telescope. Not in every copy of the
+              pen.
+            </li>
+          </ul>
+          <p>
+            The catalog in use is named in the sky line at the top left; it says
+            when your instrument could see fainter than the catalog goes. Click
+            or tap it, or open the <strong>Menu</strong>, to download a catalog
+            or switch between them at any time.
+          </p>
+        </article>
+
+        <article id="help-playing" class="help-page" role="tabpanel" hidden>
+          <h2>Ways to play</h2>
+          <p>
+            <strong>Explore</strong> is the sky as it is, with guides that name
+            the constellations, the planets and any star you tap.
+          </p>
+          <p>
+            The <strong>field game</strong> takes the guides away. Pick a target
+            from the logbook and find it in the real sky: the card tells you
+            what stands in the way (the horizon, daylight, the land, trees,
+            clouds, or faintness) and when it will be up. Center it and hold
+            steady to log it for points; logged through an eyepiece with its
+            picture in view, it counts in detail for more.
+          </p>
+          <p>
+            <strong>Draw</strong> (<kbd>C</kbd>) joins stars with lines to make
+            your own figures. Trace a real constellation from memory and it is
+            named for you, and scores in the game.
+          </p>
+          <p>
+            <strong>Assists</strong> in the menu make things easier (no trees, a
+            flat horizon, clear skies, steady optics); in the game each takes a
+            quarter off the points. Points, awards and figures are kept in this
+            browser.
+          </p>
+        </article>
+
+        <article id="help-controls" class="help-page" role="tabpanel" hidden>
+          <h2>Controls</h2>
+          <dl class="help-keys">
+            <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
+            <dd>Walk; <kbd>Shift</kbd> runs</dd>
+            <dt>Drag or arrows</dt>
+            <dd>
+              Look around; click the sky to look with the mouse,
+              <kbd>Esc</kbd> to let go
+            </dd>
+            <dt><kbd>1</kbd>–<kbd>5</kbd></dt>
+            <dd>Ways of seeing</dd>
+            <dt><kbd>+</kbd> <kbd>−</kbd></dt>
+            <dd>A telescope's eyepiece</dd>
+            <dt><kbd>R</kbd></dt>
+            <dd>A telescope's red-dot finder</dd>
+            <dt><kbd>G</kbd> <kbd>P</kbd> <kbd>I</kbd> <kbd>V</kbd></dt>
+            <dd>Guides: constellations, planets, star names, faint stars</dd>
+            <dt><kbd>C</kbd></dt>
+            <dd>Draw; <kbd>Enter</kbd> lifts the pen, <kbd>⌫</kbd> undoes</dd>
+            <dt><kbd>F</kbd></dt>
+            <dd>Red headlamp</dd>
+            <dt><kbd>M</kbd></dt>
+            <dd>Choose another place</dd>
+            <dt><kbd>L</kbd></dt>
+            <dd>Logbook, in the game</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>Menu: how to play, assists, star catalog</dd>
+            <dt><kbd>?</kbd></dt>
+            <dd>This help</dd>
+          </dl>
+          <p class="help-touch">
+            On a touch screen: drag to look, the stick walks, tap a star or
+            slot; tap a telescope's slot again for its finder.
+          </p>
+        </article>
+      </section>
+
+      <section id="sky-panel" class="panel" popover aria-label="Sky conditions">
+        <header class="panel-head">
+          <span class="panel-label">Sky conditions</span>
+          <span class="sky-source"></span>
+          <button class="live-button" type="button">Use live</button>
+        </header>
+        <div class="condition-rows"></div>
+        <p class="moon-line">
+          <span class="moon-phase"></span>
+          <span class="moon-place"></span>
+        </p>
+        <p class="land-line">
+          <span class="land-kind"></span>
+          <span class="land-credit"
+            >Land © OpenStreetMap contributors · NASA MODIS</span
+          >
+        </p>
+      </section>
+    </main>
+
+    <!-- A way of seeing on the hotbar: its key, its icon, its name and how faint it reaches. -->
+    <template id="hotbar-slot">
+      <button class="slot" type="button" aria-pressed="false">
+        <kbd></kbd>
+        <span class="slot-icon"></span>
+        <span class="slot-name"></span>
+        <span class="slot-reach"></span>
+      </button>
+    </template>
+
+    <!-- A guide on the rail: its icon, its name and its key. -->
+    <template id="rail-toggle">
+      <button class="rail-toggle" type="button" aria-pressed="false">
+        <span class="rail-icon"></span>
+        <span class="rail-name"></span>
+        <kbd></kbd>
+      </button>
+    </template>
+
+    <!-- Icons for the hotbar and the rail, by name. -->
+    <template id="icon-eye">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 12s4 -7 10 -7s10 7 10 7s-4 7 -10 7s-10 -7 -10 -7z" />
+        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+      </svg>
+    </template>
+    <template id="icon-binoculars">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 16a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+        <path d="M13 16a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+        <path d="M7 12v-6h3v6" />
+        <path d="M17 12v-6h-3v6" />
+        <path d="M11 15h2" />
+      </svg>
+    </template>
+    <template id="icon-tripod-binoculars">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+        <path d="M14 9a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+        <path d="M10 8h4" />
+        <path d="M12 12v3" />
+        <path d="M12 15l-5 6" />
+        <path d="M12 15l5 6" />
+        <path d="M12 15v6" />
+      </svg>
+    </template>
+    <template id="icon-telescope">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 21l6 -5l6 5" />
+        <path d="M12 13v8" />
+        <path
+          d="M3.294 13.678l.166 .281c.52 .88 1.624 1.265 2.605 .91l14.242 -5.165a1.023 1.023 0 0 0 .565 -1.456l-2.62 -4.705a1.087 1.087 0 0 0 -1.447 -.42l-.056 .032l-12.694 7.618c-1.02 .613 -1.357 1.897 -.76 2.905l-.001 0"
+        />
+        <path d="M14 5l3 5.5" />
+      </svg>
+    </template>
+    <template id="icon-dobsonian">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M4.5 14.5l11.2 -11.2a1.5 1.5 0 0 1 2.1 0l2.9 2.9a1.5 1.5 0 0 1 0 2.1l-11.2 11.2"
+        />
+        <path d="M4.5 14.5l5 5" />
+        <path d="M6 21h12" />
+        <path d="M8 21v-5" />
+        <path d="M16 21v-9" />
+      </svg>
+    </template>
+    <template id="award-entry">
+      <li class="award">
+        <span class="award-name"></span>
+        <span class="award-about"></span>
+      </li>
+    </template>
+    <template id="chart-entry">
+      <li class="chart">
+        <span class="chart-name"></span>
+        <span class="chart-lines"></span>
+        <button class="chart-remove" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12" />
+            <path d="M18 6l-12 12" />
+          </svg>
+        </button>
+      </li>
+    </template>
+    <template id="catalog-entry">
+      <li class="catalog">
+        <span class="catalog-text">
+          <span class="catalog-name"></span>
+          <span class="catalog-about"></span>
+        </span>
+        <button class="catalog-action" type="button"></button>
+        <span class="catalog-progress" aria-hidden="true"><i></i></span>
+      </li>
+    </template>
+    <template id="logbook-entry">
+      <li class="entry">
+        <button class="entry-button" type="button">
+          <span class="entry-name"></span>
+          <span class="entry-when"></span>
+          <span class="entry-points"></span>
+          <span class="entry-about"></span>
+        </button>
+      </li>
+    </template>
+    <template id="icon-constellations">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 18l5 -8l5 3l6 -8" />
+        <path d="M3 18a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+        <path d="M8 10a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+        <path d="M13 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+        <path d="M19 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+      </svg>
+    </template>
+    <template id="icon-planets">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" />
+        <path d="M3 15c3 -2 15 -8 18 -6" />
+      </svg>
+    </template>
+    <template id="icon-details">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M12 3l2.5 6.5l6.5 2.5l-6.5 2.5l-2.5 6.5l-2.5 -6.5l-6.5 -2.5l6.5 -2.5z"
+        />
+      </svg>
+    </template>
+    <template id="icon-faint">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 6a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+        <path d="M15 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+        <path d="M10 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" />
+        <path d="M4 17a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+        <path d="M17 18a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+      </svg>
+    </template>
+    <template id="icon-list">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 6h11" />
+        <path d="M9 12h11" />
+        <path d="M9 18h11" />
+        <path d="M5 6v.01" />
+        <path d="M5 12v.01" />
+        <path d="M5 18v.01" />
+      </svg>
+    </template>
+
+    <template id="condition-row">
+      <label class="condition">
+        <span class="condition-head">
+          <span class="condition-label"></span>
+          <output class="condition-value"></output>
+        </span>
+        <input class="condition-input" type="range" />
+      </label>
+    </template>
+
+    <template id="search-result">
+      <li class="search-result" role="option" aria-selected="false">
+        <span class="search-result-name"></span>
+        <span class="search-result-region"></span>
+      </li>
+    </template>
+
+    <template id="globe-pin">
+      <button class="pin" type="button">
+        <span class="pin-dot" aria-hidden="true"></span>
+        <span class="pin-label"></span>
+      </button>
+    </template>
+
+    <template id="planet-row">
+      <li>
+        <button class="planet-row" type="button">
+          <span class="planet-name"></span>
+          <span class="planet-where"></span>
+        </button>
+      </li>
+    </template>
+
+    <template id="sky-label">
+      <span class="sky-label"></span>
+    </template>
+
+    <template id="star-fact">
+      <div class="star-fact">
+        <dt></dt>
+        <dd></dd>
+      </div>
+    </template>
+
+    <template id="compass-label">
+      <span class="compass-label"></span>
+    </template>
+
+    <script type="module" src="./main.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://assets.commonletter.com/codepen.css"
+      media="print"
+      referrerpolicy="no-referrer-when-downgrade"
+    />
+  </body>
+</html>

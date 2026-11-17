@@ -1,0 +1,3604 @@
+/*!
+ * Stargazer
+ * Copyright (c) Cliff Pyles
+ * Released under the MIT License: https://opensource.org/license/mit
+ * Original: https://codepen.io/editor/cliffpyles/pen/01a163ce-0f11-718c-bebc-68c338f10030
+ */
+
+/* --- Tokens */
+:root {
+  color-scheme: dark;
+  --ink: rgb(236 232 222 / 0.92);
+  --ink-soft: rgb(236 232 222 / 0.62);
+  --ink-faint: rgb(236 232 222 / 0.34);
+  --night: rgb(6 8 14 / 0.74);
+  /* The HUD's translucent surfaces, deeper when the sky behind them is bright. */
+  --panel: rgb(6 8 14 / 0.5);
+  --panel-deep: rgb(6 8 14 / 0.6);
+  --hairline: rgb(255 255 255 / 0.09);
+  /* Astronomers read by dim red light to keep their night vision. */
+  --red: #e0563f;
+  --red-soft: rgb(224 86 63 / 0.35);
+  /* Gold: what is being found or pointed at in the sky. */
+  --gold: #e6c27a;
+  --gold-soft: rgb(230 194 122 / 0.16);
+  --idle-opacity: 0.55;
+  --hotbar-height: 70px;
+  --gutter: 16px;
+  --safe-top: max(var(--gutter), env(safe-area-inset-top));
+  --safe-right: max(var(--gutter), env(safe-area-inset-right));
+  --safe-bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  --safe-left: max(var(--gutter), env(safe-area-inset-left));
+  --font: "Jost", "Futura", system-ui, sans-serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- A bright sky behind the HUD (twilight, daylight): deeper surfaces, stronger
+   ink, and a surface behind the text that otherwise stands bare on the sky. */
+.scene[data-sky="bright"] {
+  --ink-soft: rgb(236 232 222 / 0.84);
+  --ink-faint: rgb(236 232 222 / 0.58);
+  --panel: rgb(6 8 14 / 0.78);
+  --panel-deep: rgb(6 8 14 / 0.84);
+  --hairline: rgb(255 255 255 / 0.14);
+  --idle-opacity: 0.85;
+}
+
+.scene[data-sky="bright"] :is(.conditions, .hotbar-label, .look-hint, .power) {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.scene[data-sky="bright"] .heading {
+  padding: 2px 0 4px;
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.scene[data-sky="bright"] :is(.compass-label, .sky-label, .rail-label) {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+/* --- Page */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.sky:active {
+  cursor: grabbing;
+}
+
+/* --- Compass */
+.compass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.compass-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  color: var(--ink-faint);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.6);
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+
+.compass-label[data-major="true"] {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* --- Heading: a quiet strip along the top that turns with the view */
+.heading {
+  position: absolute;
+  top: var(--safe-top);
+  left: 50%;
+  width: min(360px, calc(100% - 2 * var(--gutter)));
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 1.2s var(--ease);
+}
+
+.scene[data-idle="true"] .heading {
+  opacity: var(--idle-opacity);
+}
+
+.heading-strip {
+  position: relative;
+  height: 24px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 22%,
+    #000 78%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 22%,
+    #000 78%,
+    transparent
+  );
+}
+
+/* Where the view points: a short notch at the middle. */
+.heading-strip::after {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 1.5px;
+  height: 11px;
+  background: var(--ink-soft);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.heading-ticks {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.heading-ticks i {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 4px;
+  background: rgb(236 232 222 / 0.2);
+}
+
+.heading-ticks i.major {
+  height: 7px;
+  background: var(--ink-faint);
+}
+
+.heading-ticks span {
+  position: absolute;
+  top: 0;
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  transform: translateX(-50%);
+}
+
+.heading-ticks span.point {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+
+.heading-readout {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.7);
+}
+
+/* --- Sky guides: constellation and planet names */
+.sky-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+
+.sky-label[data-kind="constellation"] {
+  color: rgb(176 196 236);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-shadow: 0 0 12px rgb(0 0 0 / 0.9);
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+}
+
+/* The great constellations read first; the faint modern ones whisper. A name
+   follows its figure (--shown) and comes forward when it is lit up (--lit). */
+.sky-labels[data-constellations="true"] .sky-label[data-kind="constellation"] {
+  --base: 0.6;
+  color: color-mix(in srgb, rgb(176 196 236), white calc(var(--lit, 0) * 45%));
+  opacity: calc(
+    var(--rise, 1) * var(--shown, 1) *
+      (var(--base) + (1 - var(--base)) * var(--lit, 0))
+  );
+}
+
+.sky-labels[data-constellations="true"] .sky-label[data-rank="2"] {
+  --base: 0.45;
+}
+
+.sky-labels[data-constellations="true"] .sky-label[data-rank="3"] {
+  --base: 0.3;
+}
+
+.sky-label[data-rank="2"] {
+  font-size: 13px;
+}
+
+.sky-label[data-rank="3"] {
+  font-size: 11.5px;
+  letter-spacing: 0.22em;
+}
+
+.sky-label[data-kind="planet"] {
+  padding-left: 18px;
+  color: rgb(236 220 196 / 0.85);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transform: translate(0, -50%);
+}
+
+/* A ring around the planet itself; the name sits beside it. */
+.sky-label[data-kind="planet"]::before {
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgb(236 220 196 / 0.55);
+  border-radius: 50%;
+  content: "";
+  transform: translateY(-50%);
+}
+
+/* Over a disc drawn by its picture, the ring goes and the name sits beside the disc. */
+.sky-label[data-kind="planet"][data-disc="true"] {
+  padding-left: calc(var(--disc, 22px) / 2 + 12px);
+}
+
+.sky-label[data-kind="planet"][data-disc="true"]::before {
+  display: none;
+}
+
+/* --- Where each planet is tonight */
+.planet-list {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 10px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--hairline);
+  list-style: none;
+}
+
+.planet-list[hidden] {
+  display: none;
+}
+
+.planet-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planet-row:disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .planet-row:not(:disabled):hover {
+    background: rgb(255 255 255 / 0.06);
+  }
+}
+
+.planet-where {
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.planet-row:disabled .planet-where {
+  color: var(--ink-faint);
+}
+
+/* --- A tapped star */
+.star-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--red);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgb(224 86 63 / 0.45);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.star-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 236px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--night);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  will-change: transform;
+}
+
+.star-name {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.star-designation {
+  margin: 2px 0 10px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.star-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+}
+
+.star-fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.star-fact dt {
+  color: var(--ink-faint);
+}
+
+.star-fact dd {
+  margin: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.star-seen {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.star-seen[data-seen="true"] {
+  color: var(--ink);
+}
+
+/* --- The constellation under the pointer: what it is, where, and what is beside it.
+   Gold marks what is being found, here and on the sky. */
+.figure-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 250px;
+  padding: 11px 14px 12px;
+  border: 1px solid rgb(230 194 122 / 0.22);
+  border-radius: 12px;
+  background: var(--night);
+  pointer-events: none;
+  will-change: transform;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.figure-card[hidden] {
+  display: none;
+}
+
+.figure-card[data-kept="true"] {
+  pointer-events: auto;
+}
+
+.figure-kind {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.figure-name {
+  margin: 2px 0 0;
+  color: var(--gold);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.figure-where {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure-near {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.figure-near[hidden] {
+  display: none;
+}
+
+.near-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.03);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.near-chip::after {
+  margin-left: 4px;
+  color: var(--gold);
+  content: "→";
+}
+
+.near-chip[data-kind="planet"] {
+  border-color: rgb(236 220 196 / 0.35);
+}
+
+@media (hover: hover) {
+  .near-chip:hover {
+    background: var(--gold-soft);
+  }
+}
+
+.figure-hint {
+  margin: 8px 0 0;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.figure-card[data-kept="true"] .figure-hint {
+  display: none;
+}
+
+/* --- Where and when: the place, the time, and how dark the night is */
+.conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(440px, calc(100vw - 2 * var(--gutter)));
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.75);
+  pointer-events: none;
+  transition: opacity 1.2s var(--ease);
+}
+
+.conditions-place {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conditions-time {
+  color: var(--ink-soft);
+}
+
+.conditions-sky {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The sky's darkness: ten cells that fill as it darkens, cool like the night. */
+.darkness {
+  display: inline-grid;
+  grid-template-columns: repeat(10, 5px);
+  gap: 2px;
+  margin-right: -6px;
+}
+
+.darkness i {
+  height: 8px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.12);
+  transition: background-color 0.6s var(--ease);
+}
+
+.darkness i[data-on="true"] {
+  background: rgb(160 190 255 / 0.72);
+}
+
+.conditions-stars:empty {
+  display: none;
+}
+
+/* Loading the place: a quiet line under its details, a few words and a hairline
+   that fills, gone once everything has arrived. */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition:
+    opacity 0.9s var(--ease),
+    height 0.6s var(--ease),
+    margin-top 0.6s var(--ease);
+}
+
+.loading[data-show="true"] {
+  height: 15px;
+  margin-top: 3px;
+  opacity: 0.7;
+}
+
+.loading-bar {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 1px;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.loading-bar::after {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-soft);
+  transform: scaleX(var(--done, 0));
+  transform-origin: left;
+  transition: transform 0.5s var(--ease);
+  content: "";
+}
+
+.status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.status:empty {
+  display: none;
+}
+
+/* --- Toolbar: each control named, with what it is set to; what is on shows it */
+.toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: opacity 1.2s var(--ease);
+}
+
+.tool {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 64px;
+  padding: 7px 8px 6px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color 0.25s var(--ease),
+    background-color 0.25s var(--ease);
+}
+
+.tool svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool-name {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tool-state {
+  min-height: 12px;
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  line-height: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool[aria-pressed="true"],
+.tool[aria-expanded="true"] {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--ink);
+}
+
+/* The headlamp is red light, and says so while it is on. */
+.lamp-button[aria-pressed="true"] {
+  background: rgb(224 86 63 / 0.16);
+  color: var(--red);
+}
+
+.lamp-button[aria-pressed="true"] .tool-state {
+  color: rgb(224 86 63 / 0.75);
+}
+
+@media (hover: hover) {
+  .tool:hover {
+    background: rgb(255 255 255 / 0.06);
+    color: var(--ink);
+  }
+}
+
+.sound-button[aria-pressed="false"] .sound-on,
+.sound-button[aria-pressed="true"] .sound-off {
+  display: none;
+}
+
+/* --- Round icon buttons (the globe's controls) */
+.icon-button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: rgb(6 8 14 / 0.42);
+  color: var(--ink-soft);
+  cursor: pointer;
+  place-items: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    color 0.25s var(--ease),
+    background-color 0.25s var(--ease),
+    border-color 0.25s var(--ease);
+}
+
+.icon-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* --- Tooltips: each icon's name, beside it, on hover or keyboard focus */
+.icon-button {
+  position: relative;
+}
+
+.icon-button::after {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 10px);
+  padding: 5px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  content: attr(aria-label);
+  opacity: 0;
+  transform: translate(4px, -50%);
+  transition:
+    opacity 0.2s var(--ease),
+    transform 0.2s var(--ease);
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.back-button::after {
+  right: calc(100% + 10px);
+  left: auto;
+}
+
+@media (hover: hover) {
+  .icon-button:hover::after {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+.icon-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.icon-button[aria-expanded="true"]::after {
+  opacity: 0;
+}
+
+.icon-button[aria-expanded="true"] {
+  border-color: var(--red-soft);
+  color: var(--red);
+}
+
+@media (hover: hover) {
+  .icon-button:hover {
+    background: rgb(6 8 14 / 0.7);
+    color: var(--ink);
+  }
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--red);
+  outline-offset: 3px;
+}
+
+/* --- Panels */
+.panel {
+  position: fixed;
+  inset: auto;
+  width: min(300px, calc(100vw - 2 * var(--gutter)));
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--font);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.panel::backdrop {
+  background: transparent;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.time-clock {
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-date {
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+/* --- Timeline: tonight from dusk to dawn, its track showing daylight, twilight
+   and full dark, with a pale band over the hours the Moon is up */
+.timeline {
+  width: 420px;
+  max-width: calc(100vw - 2 * var(--gutter));
+  padding: 9px 14px 7px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.timeline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-date {
+  flex: none;
+  padding: 2px 6px;
+  white-space: nowrap;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.timeline-date::after {
+  margin-left: 6px;
+  color: var(--ink-faint);
+  content: "▾";
+}
+
+@media (hover: hover) {
+  .timeline-date:hover {
+    background: rgb(255 255 255 / 0.07);
+  }
+}
+
+.timeline-date[aria-expanded="true"] {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.timeline-night {
+  overflow: hidden;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-track {
+  position: relative;
+}
+
+.timeline-moon {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 2px;
+  margin-top: -6px;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.night-slider {
+  display: block;
+  width: 100%;
+  height: 26px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.night-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--night-gradient, rgb(255 255 255 / 0.1));
+}
+
+.night-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--night-gradient, rgb(255 255 255 / 0.1));
+}
+
+.night-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #0b0d14;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.night-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #0b0d14;
+}
+
+.night-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Form fields and buttons */
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.field input {
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.04);
+  color: var(--ink);
+  font: inherit;
+  /* 16px keeps iOS from zooming the page on focus. */
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.text-button {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.04);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    background-color 0.25s var(--ease),
+    border-color 0.25s var(--ease);
+}
+
+.text-button[aria-pressed="true"] {
+  border-color: var(--red-soft);
+  color: var(--red);
+}
+
+@media (hover: hover) {
+  .text-button:hover {
+    background: rgb(255 255 255 / 0.09);
+  }
+}
+
+/* --- Panel labels and notes */
+.panel-label {
+  padding: 0;
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* --- Offer to download a star set */
+.offer {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--red-soft);
+  border-radius: 10px;
+  background: rgb(224 86 63 / 0.05);
+}
+
+.offer-text {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.offer-progress {
+  height: 3px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.offer-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--red);
+  transform: scaleX(var(--progress, 0));
+  transform-origin: left;
+  transition: transform 0.2s linear;
+}
+
+.offer-actions[hidden] {
+  display: none;
+}
+
+/* --- Switch */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.12);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background-color 0.25s var(--ease);
+}
+
+.switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+  content: "";
+  transition: transform 0.25s var(--ease);
+}
+
+.switch:checked {
+  background: var(--red);
+}
+
+.switch:checked::after {
+  transform: translateX(16px);
+}
+
+/* --- Sky conditions */
+.sky-source {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+
+.condition-rows {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.condition {
+  display: grid;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.condition-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.condition-label {
+  color: var(--ink-soft);
+}
+
+.condition-value {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.condition-input {
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.condition-input::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.condition-input::-moz-range-track {
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.condition-input::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border: 1.5px solid var(--ink-soft);
+  border-radius: 50%;
+  background: #0b0d14;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.condition-input::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--ink-soft);
+  border-radius: 50%;
+  background: #0b0d14;
+}
+
+.condition-input:active::-webkit-slider-thumb {
+  border-color: var(--red);
+}
+
+.moon-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* Back to the live forecast: beside the source, so the sliders never move. */
+.live-button {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .live-button:hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+/* The land underfoot, and where its picture comes from. */
+.land-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.land-credit {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+.live-button[hidden] {
+  display: none;
+}
+
+/* --- Walking: crosshair, a passing hint, and a joystick on touch screens */
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease);
+}
+
+/* A small cross with a gap at its middle, so it never covers a star. */
+.crosshair::before,
+.crosshair::after {
+  position: absolute;
+  background: rgb(236 232 222 / 0.85);
+  box-shadow: 0 0 2px rgb(0 0 0 / 0.6);
+  content: "";
+}
+
+.crosshair::before {
+  top: 0;
+  left: 7.25px;
+  width: 1.5px;
+  height: 16px;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 35%,
+    0 35%,
+    0 65%,
+    100% 65%,
+    100% 100%,
+    0 100%
+  );
+}
+
+.crosshair::after {
+  top: 7.25px;
+  left: 0;
+  width: 16px;
+  height: 1.5px;
+  clip-path: polygon(
+    0 0,
+    35% 0,
+    35% 100%,
+    0 100%,
+    0 0,
+    65% 0,
+    100% 0,
+    100% 100%,
+    65% 100%
+  );
+}
+
+.scene[data-looking="true"] .crosshair {
+  opacity: 0.9;
+}
+
+.scene[data-touch="true"] .crosshair {
+  display: none;
+}
+
+/* --- Looking through an instrument: the eyepiece's circle of view, and black
+   all round it. Binoculars' field edge is softened by the eyecups; a telescope's
+   field stop is sharp. */
+.eyepiece {
+  --radius: calc(var(--fill, 0.88) * 50vmin);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.eyepiece::before,
+.eyepiece::after {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  content: "";
+}
+
+.scene[data-optic="binocular"] .eyepiece::before {
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent calc(var(--radius) - 14px),
+    rgb(0 0 0 / 0.6) calc(var(--radius) - 3px),
+    #000 calc(var(--radius) + 2px)
+  );
+  opacity: 1;
+}
+
+.scene[data-optic="telescope"] .eyepiece::before {
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent calc(var(--radius) - 1px),
+    #000 calc(var(--radius) + 0.5px)
+  );
+  opacity: 1;
+}
+
+.scene[data-finder="true"] .eyepiece::before {
+  opacity: 0;
+}
+
+/* The eye moving to the eyepiece. */
+.eyepiece::after {
+  background: #000;
+  transition: opacity 0.2s var(--ease);
+}
+
+.eyepiece[data-blink="true"]::after {
+  opacity: 1;
+}
+
+.heading {
+  z-index: 1;
+}
+
+/* No cross in an eyepiece. */
+.scene:is([data-optic="binocular"], [data-optic="telescope"]) .crosshair {
+  opacity: 0;
+}
+
+/* A red-dot finder: a ring and a dot that seem to float on the sky. */
+.scene[data-finder="true"] .crosshair {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid rgb(255 70 56 / 0.75);
+  border-radius: 50%;
+  opacity: 1;
+  box-shadow: 0 0 6px rgb(255 50 40 / 0.35);
+}
+
+.scene[data-finder="true"] .crosshair::before {
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(255 80 64);
+  box-shadow: 0 0 5px rgb(255 50 40 / 0.8);
+  clip-path: none;
+  transform: translate(-50%, -50%);
+}
+
+.scene[data-finder="true"] .crosshair::after {
+  display: none;
+}
+
+/* How to move, under the crosshair, until it has been learned. */
+.look-hint {
+  position: absolute;
+  top: calc(50% + 22px);
+  left: 50%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow: 0 1px 10px rgb(0 0 0 / 0.9);
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s var(--ease);
+}
+
+.look-hint[data-show="true"] {
+  opacity: 1;
+}
+
+.walk-hint {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 40px);
+  left: 50%;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--night);
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s var(--ease);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.walk-hint[data-show="true"] {
+  opacity: 1;
+}
+
+.joystick {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 40px);
+  left: var(--safe-left);
+  display: none;
+  width: 112px;
+  height: 112px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: rgb(6 8 14 / 0.35);
+  touch-action: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.scene[data-touch="true"] .joystick {
+  display: block;
+}
+
+.joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 50%;
+  background: rgb(236 232 222 / 0.16);
+  will-change: transform;
+}
+
+/* --- Views: ground controls and globe controls never show together */
+
+/* The field game has no guides, and its own card in place of the sky banner. */
+.scene[data-mode="game"] .guides-rail,
+.scene[data-mode="game"] .sky-banner {
+  display: none;
+}
+
+/* --- The place dialog: the night Earth and a search, over the game. */
+.place-dialog {
+  /* No wider than the globe needs on a wide, short screen, so the place you
+     stand at shows on either side. */
+  width: min(
+    1000px,
+    calc(100vw - 2 * var(--gutter)),
+    calc((100dvh - 2 * var(--gutter)) * 1.15)
+  );
+  height: min(780px, calc(100dvh - 2 * var(--gutter)));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: #03050a;
+  color: var(--ink);
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+.place-dialog[open] {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+}
+
+/* The place you stand at stays in view around the dialog, only a little dimmed. */
+.place-dialog::backdrop {
+  background: rgb(2 3 6 / 0.22);
+}
+
+.place-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px 12px 22px;
+}
+
+.place-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.place-intro {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.place-head .back-button {
+  flex: none;
+}
+
+.globe-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.globe-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.place-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 18px 14px 22px;
+  border-top: 1px solid var(--hairline);
+}
+
+.place-foot[hidden] {
+  display: none;
+}
+
+.place-start {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.stay-button {
+  flex: none;
+}
+
+.place-dialog:focus {
+  outline: none;
+}
+
+.place-start strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* --- Search */
+.search {
+  position: relative;
+  z-index: 2;
+  margin: 0 22px 12px;
+  max-width: 460px;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+}
+
+.search-icon {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px 0 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  outline: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    border-color 0.25s var(--ease),
+    background-color 0.25s var(--ease);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.search-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.search-input:focus {
+  border-color: var(--red-soft);
+  background: rgb(6 8 14 / 0.78);
+}
+
+.search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-results {
+  margin: 8px 0 0;
+  padding: 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--night);
+  list-style: none;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.search-result {
+  display: grid;
+  gap: 1px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.search-result[aria-selected="true"] {
+  background: rgb(224 86 63 / 0.12);
+}
+
+@media (hover: hover) {
+  .search-result:hover {
+    background: rgb(255 255 255 / 0.06);
+  }
+}
+
+.search-result-name {
+  font-size: 14px;
+}
+
+.search-result-region {
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.search-result[data-dark-sky="true"] .search-result-name::after {
+  margin-left: 8px;
+  color: var(--red);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  content: "Dark sky";
+}
+
+/* --- Pins for dark-sky places */
+.pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.8);
+  will-change: transform;
+}
+
+/* A hollow, cool ring: a mark set on the map, not another city's light. */
+.pin-dot {
+  flex: none;
+  box-sizing: border-box;
+  width: 11px;
+  height: 11px;
+  margin-left: 8px;
+  border: 1.5px solid rgb(150 205 255 / 0.95);
+  border-radius: 50%;
+  background: rgb(150 205 255 / 0.08);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.55),
+    0 0 8px 1px rgb(120 180 255 / 0.45);
+}
+
+.pin:hover .pin-dot,
+.pin:focus-visible .pin-dot {
+  background: rgb(150 205 255 / 0.35);
+}
+
+.pin-label {
+  opacity: 0;
+  transition: opacity 0.4s var(--ease);
+}
+
+.pins[data-labels="true"] .pin-label,
+.pin:hover .pin-label,
+.pin:focus-visible .pin-label {
+  opacity: 1;
+}
+
+/* --- The spot being considered */
+.target {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 232px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--night);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  will-change: transform;
+}
+
+/* A ring on the ground point, below the card. */
+.target::after {
+  position: absolute;
+  bottom: -32px;
+  left: calc(50% - 8px);
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--red);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgb(224 86 63 / 0.6);
+  content: "";
+}
+
+.target-name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.target-region {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.target-sky {
+  margin: 8px 0 12px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.stargaze-button {
+  width: 100%;
+  border-color: var(--red-soft);
+  color: var(--ink);
+}
+
+/* --- Globe hint and zoom */
+.globe-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  transition: opacity 1s var(--ease);
+  pointer-events: none;
+}
+
+.place-dialog[data-hinted="true"] .globe-hint {
+  opacity: 0;
+}
+
+.zoom {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* --- Transition veil */
+.veil {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --- Wider screens */
+/* --- The HUD: where and when along the top, the guides down the left, the ways of
+   seeing and the lamp, sound and sky along the bottom */
+kbd {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.04);
+  color: var(--ink-soft);
+  font: 500 10px/1 var(--font);
+  letter-spacing: 0;
+  place-items: center;
+}
+
+.hud-top,
+.hud-bottom {
+  position: absolute;
+  right: var(--safe-right);
+  left: var(--safe-left);
+  pointer-events: none;
+  transition: opacity 1.2s var(--ease);
+}
+
+.hud-top > *,
+.hud-bottom > * {
+  pointer-events: auto;
+}
+
+.hud-top {
+  top: var(--safe-top);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.hud-place {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.hud-place .conditions {
+  pointer-events: none;
+}
+
+.hud-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background-color 0.25s var(--ease);
+}
+
+.chip svg,
+.rail-toggle svg,
+.rail-more svg,
+.slot svg,
+.sky-banner svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (hover: hover) {
+  .chip:hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+.conditions-heading {
+  display: none;
+}
+
+/* The guides: a column of keyed switches; a lit bar marks the ones on. */
+.guides-rail {
+  position: absolute;
+  top: 50%;
+  left: var(--safe-left);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px;
+  transform: translateY(-50%);
+  transition: opacity 1.2s var(--ease);
+}
+
+.rail-label {
+  grid-column: 1;
+  padding-left: 4px;
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.rail-toggle {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 172px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    color 0.25s var(--ease),
+    background-color 0.25s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+
+.rail-toggle kbd {
+  margin-left: auto;
+}
+
+.rail-toggle[aria-pressed="true"] {
+  color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+
+.rail-toggle[aria-pressed="true"] svg {
+  color: var(--gold);
+}
+
+.rail-more {
+  grid-column: 2;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--ink-soft);
+  cursor: pointer;
+  place-items: center;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.rail-more[hidden] {
+  display: none;
+}
+
+.rail-more[aria-expanded="true"] {
+  color: var(--ink);
+  background: rgb(255 255 255 / 0.1);
+}
+
+@media (hover: hover) {
+  .rail-toggle:hover,
+  .rail-more:hover {
+    background: rgb(255 255 255 / 0.08);
+    color: var(--ink);
+  }
+}
+
+/* Along the bottom: the hotbar in the middle, the toolbar at the right. */
+.hud-bottom {
+  bottom: var(--safe-bottom);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: end;
+  row-gap: 8px;
+}
+
+.hotbar-label {
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: center;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 10px rgb(0 0 0 / 0.9);
+  pointer-events: none;
+}
+
+.hotbar {
+  grid-row: 2;
+  grid-column: 2;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.slot {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 88px;
+  padding: 9px 4px 7px;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ease),
+    background-color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+
+.slot kbd {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  min-width: 15px;
+  height: 15px;
+  font-size: 9.5px;
+}
+
+.slot-reach {
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot[aria-pressed="true"] {
+  border-color: rgb(236 232 222 / 0.85);
+  background: rgb(255 255 255 / 0.08);
+  color: var(--ink);
+}
+
+/* Equipment being set up fills its slot from the bottom; equipment standing
+   somewhere is marked with a small dot. */
+.slot[data-setting="true"]::before {
+  position: absolute;
+  inset: auto 6px 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--ink) calc(var(--setup, 0) * 100%),
+    rgb(255 255 255 / 0.15) 0
+  );
+  content: "";
+}
+
+.slot[data-standing="true"]::after {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  content: "";
+}
+
+@media (hover: hover) {
+  .slot:hover {
+    background: rgb(255 255 255 / 0.06);
+    color: var(--ink);
+  }
+}
+
+.toolbar-right {
+  grid-row: 2;
+  grid-column: 3;
+  justify-self: end;
+}
+
+.toolbar-left {
+  grid-row: 2;
+  grid-column: 1;
+  justify-self: start;
+}
+
+/* The chips at the top left stand in for the left toolbar on phones only. */
+.hud-chips {
+  display: none;
+}
+
+/* Why the sky looks as it does: under the heading, one thing to do about it. */
+.sky-banner {
+  position: absolute;
+  top: calc(var(--safe-top) + 62px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 2 * var(--gutter));
+  padding: 7px 8px 7px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--panel-deep);
+  color: var(--ink);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  transform: translateX(-50%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: banner-in 0.6s var(--ease);
+}
+
+.sky-banner[hidden] {
+  display: none;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+.sky-banner-text {
+  white-space: nowrap;
+}
+
+.sky-banner-action {
+  padding: 4px 11px;
+  border: 1px solid rgb(230 194 122 / 0.4);
+  border-radius: 999px;
+  background: none;
+  color: var(--gold);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sky-banner-action[hidden] {
+  display: none;
+}
+
+.sky-banner-close {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  place-items: center;
+}
+
+@media (hover: hover) {
+  .sky-banner-action:hover {
+    background: var(--gold-soft);
+  }
+  .sky-banner-close:hover {
+    color: var(--ink);
+  }
+}
+
+.scene[data-idle="true"] .hud-top,
+.scene[data-idle="true"] .hud-bottom,
+.scene[data-idle="true"] .guides-rail {
+  opacity: var(--idle-opacity);
+}
+
+/* Narrower: the heading's reading joins the place's details, and the banner sits
+   above the hotbar, where the top row has no room for it. */
+@media (max-width: 1300px) {
+  .heading {
+    display: none;
+  }
+
+  .conditions-heading {
+    display: block;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sky-banner {
+    top: auto;
+    bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 36px);
+  }
+}
+
+/* Narrower still, the toolbars sit over the hotbar's ends. */
+@media (max-width: 1180px) {
+  .hud-bottom {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .hotbar-label {
+    grid-row: 2;
+    grid-column: 1;
+  }
+
+  .hotbar {
+    grid-row: 3;
+    grid-column: 1;
+    justify-self: center;
+  }
+
+  .sky-banner,
+  .walk-hint,
+  .joystick {
+    bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 120px);
+  }
+}
+
+/* Phones: the rail shows only its icons, the hotbar fills the width, and the
+   banner wraps. */
+@media (max-width: 640px) {
+  :root {
+    --hotbar-height: 62px;
+  }
+
+  .conditions-place {
+    font-size: 15px;
+  }
+
+  .rail-toggle {
+    width: auto;
+    padding: 8px;
+  }
+
+  .rail-toggle .rail-name,
+  .rail-toggle kbd,
+  .rail-label,
+  .slot kbd,
+  .hotbar-label,
+  .toolbar-left {
+    display: none;
+  }
+
+  .hud-chips {
+    display: flex;
+  }
+
+  .hotbar {
+    justify-self: stretch;
+  }
+
+  .slot {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    padding: 8px 2px 6px;
+    font-size: 10.5px;
+  }
+
+  .slot-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tool {
+    min-width: 52px;
+    padding: 6px 4px 5px;
+  }
+
+  .tool-state {
+    display: none;
+  }
+
+  .sky-banner {
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 16px;
+    text-align: center;
+  }
+
+  .sky-banner-text {
+    white-space: normal;
+  }
+
+  .look-hint {
+    white-space: normal;
+    width: min(240px, calc(100vw - 140px));
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .observe-ring[data-logged="true"],
+  .points-rise[data-show="true"] {
+    animation: none;
+  }
+
+  .toolbar,
+  .tool,
+  .hud-top,
+  .hud-bottom,
+  .guides-rail,
+  .slot,
+  .rail-toggle,
+  .icon-button,
+  .text-button {
+    transition: none;
+  }
+}
+
+/* --- The menu: how to play, assists and the logbook, in the middle of the screen. */
+.panel.menu {
+  inset: 0;
+  width: min(780px, calc(100vw - 2 * var(--gutter)));
+  max-height: min(90vh, 880px);
+  margin: auto;
+  padding: 18px 22px 20px;
+  overflow-y: auto;
+  background: rgb(6 8 14 / 0.88);
+}
+
+/* Wide enough for the settings, the catalog and awards, and the logbook side by
+   side; explore has no logbook or awards, so two columns. */
+.panel.menu[data-mode="game"] {
+  width: min(1120px, calc(100vw - 2 * var(--gutter)));
+}
+
+.menu > .panel-head {
+  margin-bottom: 6px;
+}
+
+.menu-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0 28px;
+}
+
+.menu[data-mode="game"] .menu-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.menu:not([data-mode="game"]) .menu-progress {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .menu[data-mode="game"] .menu-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .menu[data-mode="game"] .menu-progress {
+    grid-column: 1 / -1;
+  }
+
+  .menu[data-mode="game"] .logbook-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* With room for columns, awards are compact tiles (each says how to earn it on
+   hover); on phones, in one column, they say it in full. */
+@media (min-width: 681px) {
+  .award-about {
+    display: none;
+  }
+
+  .award {
+    padding: 7px 10px;
+  }
+}
+
+@media (max-width: 680px) {
+  .panel.menu {
+    padding: 14px 14px 16px;
+  }
+
+  .menu-columns,
+  .menu[data-mode="game"] .menu-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .menu[data-mode="game"] .logbook-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.menu-score {
+  color: var(--gold);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+.menu legend {
+  margin-bottom: 8px;
+}
+
+.mode {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease),
+    background-color 0.2s var(--ease);
+}
+
+.mode:has(input:checked) {
+  border-color: rgb(236 232 222 / 0.6);
+  background: rgb(255 255 255 / 0.05);
+}
+
+.mode input {
+  grid-row: span 2;
+  margin: 3px 0 0;
+  accent-color: var(--gold);
+}
+
+.mode-name {
+  font-size: 14px;
+}
+
+.mode-about {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.assists {
+  grid-template-columns: 1fr 1fr;
+}
+
+.assist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.assist input {
+  margin: 0;
+  accent-color: var(--gold);
+}
+
+.assist-cost {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.logbook {
+  display: none;
+  margin-bottom: 18px;
+}
+
+.menu[data-mode="game"] .logbook {
+  display: block;
+}
+
+.logbook-list {
+  display: grid;
+  gap: 1px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry-button {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 0 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entry-button[aria-current="true"] {
+  border-color: var(--gold-soft);
+  background: var(--gold-soft);
+}
+
+.entry-name {
+  font-size: 13.5px;
+}
+
+.entry-points {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* What each target is shows on hover, so the logbook fits one row a target. */
+.entry-about {
+  display: none;
+}
+
+.entry-name {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-points {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+/* When each target is up tonight and what it takes, or why it cannot be had. */
+.entry-when {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  color: var(--ink-faint);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.entry-when:empty {
+  display: none;
+}
+
+.entry-name {
+  grid-row: 1;
+}
+
+.entry-picture {
+  grid-row: 1 / span 2;
+}
+
+/* The groups of the night's path, and what tonight holds from here. */
+.logbook-group {
+  grid-column: 1 / -1;
+  margin: 10px 0 2px;
+  padding: 0 8px;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.logbook-group:first-child {
+  margin-top: 0;
+}
+
+.logbook-summary {
+  margin: 4px 0 0;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.logbook-summary:empty {
+  display: none;
+}
+
+.entry[data-logged="true"] .entry-name::before {
+  margin-right: 6px;
+  color: var(--gold);
+  content: "✓";
+}
+
+.entry[data-logged="true"] .entry-points {
+  color: var(--gold);
+}
+
+@media (hover: hover) {
+  .entry-button:hover {
+    background: rgb(255 255 255 / 0.05);
+  }
+}
+
+/* --- The hunt card, under the heading, and the ring that fills while a target is held. */
+.hunt {
+  position: absolute;
+  top: calc(var(--safe-top) + 62px);
+  left: 50%;
+  display: grid;
+  gap: 3px;
+  width: min(420px, calc(100vw - 2 * var(--gutter)));
+  padding: 10px 14px 11px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--panel-deep);
+  transform: translateX(-50%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.hunt[hidden] {
+  display: none;
+}
+
+.hunt p {
+  margin: 0;
+}
+
+.hunt-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.hunt-label {
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hunt-score {
+  color: var(--gold);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hunt-name {
+  font-size: 16px;
+}
+
+.hunt[data-visible="true"] .hunt-name {
+  color: var(--gold);
+}
+
+.hunt-status {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.hunt-change {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.hunt-change kbd {
+  margin-left: 4px;
+}
+
+.observe-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--gold) calc(var(--held, 0) * 360deg),
+    rgb(255 255 255 / 0.12) 0
+  );
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s var(--ease);
+  mask: radial-gradient(circle, transparent 20px, #000 21px);
+  -webkit-mask: radial-gradient(circle, transparent 20px, #000 21px);
+}
+
+.observe-ring[data-show="true"] {
+  opacity: 0.9;
+}
+
+/* The moment of logging: the ring closes on the target, full gold, with a soft
+   flare, and goes; the points rise from it in the title face and fade. */
+.observe-ring[data-logged="true"] {
+  animation: ring-close var(--moment-close, 1.1s) var(--ease) forwards;
+}
+
+@keyframes ring-close {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 0 rgb(230 194 122 / 0));
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.62);
+    filter: drop-shadow(0 0 10px rgb(230 194 122 / 0.9));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.45);
+    filter: drop-shadow(0 0 14px rgb(230 194 122 / 0));
+  }
+}
+
+.points-rise {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--gold);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 34px;
+  font-style: italic;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 0 18px rgb(230 194 122 / 0.45);
+  transform: translate(-50%, -50%);
+}
+
+.points-rise[data-detail="true"] {
+  font-size: 40px;
+}
+
+.points-rise[data-show="true"] {
+  animation: points-rise var(--moment-rise, 1.8s) cubic-bezier(0.2, 0.7, 0.3, 1)
+    forwards;
+}
+
+/* It starts just above the ring, clear of the target itself (the Moon is bright). */
+@keyframes points-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-22px) scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(-40px) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(-76px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-100px) scale(0.98);
+  }
+}
+
+.hunt-score {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Without the heading strip, the place line runs wider; the card moves under
+   the timeline, at the right. */
+@media (min-width: 641px) and (max-width: 1300px) {
+  .hunt {
+    top: calc(var(--safe-top) + 112px);
+    right: var(--safe-right);
+    left: auto;
+    width: min(380px, calc(100vw - 2 * var(--gutter)));
+    transform: none;
+  }
+}
+
+/* Keys mean nothing on a touch screen. */
+.scene[data-touch="true"] :is(.place-button, .menu-button, .hunt-change) kbd {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .hunt {
+    top: calc(var(--safe-top) + 272px);
+    padding: 8px 12px 9px;
+  }
+
+  .hunt-name {
+    font-size: 15px;
+  }
+
+  .hunt-status {
+    font-size: 12px;
+  }
+}
+
+/* --- Drawing constellations: a ring on the star a click would take, and a bar of
+   what can be done with the drawing. */
+.draw-snap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--gold);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease);
+}
+
+.draw-snap[data-show="true"] {
+  opacity: 0.9;
+}
+
+.scene[data-drawing="true"] .sky {
+  cursor: crosshair;
+}
+
+.draw-bar {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 34px);
+  left: 50%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: calc(100vw - 2 * var(--gutter));
+  padding: 6px;
+  border: 1px solid var(--gold-soft);
+  border-radius: 14px;
+  background: rgb(6 8 14 / 0.72);
+  transform: translateX(-50%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.draw-bar[hidden] {
+  display: none;
+}
+
+.draw-count {
+  padding: 0 8px;
+  color: var(--gold);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.draw-bar button,
+.draw-name {
+  padding: 5px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.draw-bar button {
+  cursor: pointer;
+}
+
+.draw-bar button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.draw-bar kbd {
+  margin-left: 4px;
+}
+
+.draw-name {
+  width: 120px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.04);
+}
+
+.draw-name::placeholder {
+  color: var(--ink-faint);
+}
+
+.draw-save {
+  border-color: var(--gold-soft) !important;
+  background: var(--gold-soft) !important;
+}
+
+.draw-button[aria-pressed="true"] {
+  color: var(--gold);
+}
+
+.scene[data-touch="true"] .draw-bar kbd {
+  display: none;
+}
+
+/* While drawing, the hotbar's label would sit under the bar. */
+.scene[data-drawing="true"] .hotbar-label {
+  visibility: hidden;
+}
+
+/* --- Awards and your figures, in the menu. */
+.awards {
+  display: none;
+  margin-bottom: 18px;
+}
+
+.menu[data-mode="game"] .awards {
+  display: block;
+}
+
+.award-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.award {
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  padding: 6px 9px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  opacity: 0.45;
+}
+
+.award[data-earned="true"] {
+  border-color: var(--gold-soft);
+  background: var(--gold-soft);
+  opacity: 1;
+}
+
+.award-name {
+  font-size: 12.5px;
+}
+
+.award[data-earned="true"] .award-name {
+  color: var(--gold);
+}
+
+.award-about {
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.charts {
+  margin-bottom: 18px;
+}
+
+.chart-list {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chart {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  font-size: 13px;
+}
+
+.chart-lines {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+.chart-remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.chart-remove svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.charts-empty {
+  margin: 6px 0 0;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* Phones: while drawing, the bar takes the toolbar's place across the width. */
+@media (max-width: 640px) {
+  .draw-bar {
+    right: var(--safe-right);
+    bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 24px);
+    left: var(--safe-left);
+    transform: none;
+  }
+
+  .draw-name {
+    flex: 1 1 100px;
+  }
+
+  .scene[data-drawing="true"] :is(.hud-bottom .toolbar, .joystick) {
+    visibility: hidden;
+  }
+}
+
+/* --- A telescope's eyepieces: lower and higher power, above the hotbar. */
+.power {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + var(--hotbar-height) + 40px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--panel-deep);
+  transform: translateX(-50%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.power[hidden],
+.scene[data-drawing="true"] .power {
+  display: none;
+}
+
+.power button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.power button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.power-value {
+  min-width: 48px;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+@media (hover: hover) {
+  .power button:not(:disabled):hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+.hunt-picture {
+  margin: 6px 0 2px;
+}
+
+.hunt-picture[hidden] {
+  display: none;
+}
+
+.hunt-picture img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  object-fit: cover;
+  animation: picture-in 1.2s var(--ease);
+}
+
+@keyframes picture-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.hunt-picture figcaption {
+  margin-top: 4px;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+}
+
+@media (max-width: 640px) {
+  .hunt-picture img {
+    max-height: 140px;
+  }
+}
+
+/* Seen in detail: a small thumbnail of its photograph before the name. */
+.entry-picture {
+  grid-column: 1;
+  grid-row: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+/* --- The catalog in use, in the sky line: a quiet link to choose another. */
+.catalog-button {
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dotted var(--ink-faint);
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.catalog-button:empty {
+  display: none;
+}
+
+@media (hover: hover) {
+  .catalog-button:hover {
+    color: var(--ink);
+    border-bottom-color: var(--ink-soft);
+  }
+}
+
+/* --- Star catalogs, in the menu. */
+.catalogs {
+  margin-bottom: 18px;
+}
+
+.catalog-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.catalog[data-state="in-use"] {
+  border-color: rgb(236 232 222 / 0.6);
+  background: rgb(255 255 255 / 0.05);
+}
+
+.catalog-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.catalog-name {
+  font-size: 13.5px;
+}
+
+.catalog-about {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.catalog-action {
+  padding: 5px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-action:disabled {
+  border-color: transparent;
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+.catalog[data-state="in-use"] .catalog-action {
+  color: var(--ink);
+}
+
+@media (hover: hover) {
+  .catalog-action:not(:disabled):hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+.catalog-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  display: none;
+}
+
+.catalog[data-state="downloading"] .catalog-progress {
+  display: block;
+}
+
+.catalog-progress i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.3s linear;
+}
+
+.catalog-note {
+  margin: 8px 0 0;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* --- Help: topics as tabs down the side (across the top on phones). */
+.panel.help {
+  inset: 0;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  grid-template-rows: auto 1fr;
+  column-gap: 20px;
+  width: min(760px, calc(100vw - 2 * var(--gutter)));
+  height: min(82vh, 640px);
+  margin: auto;
+  padding: 18px 20px 20px;
+  background: rgb(6 8 14 / 0.9);
+}
+
+.panel.help:not(:popover-open) {
+  display: none;
+}
+
+.help .panel-head {
+  grid-column: 1 / -1;
+  align-items: center;
+}
+
+.help-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.help-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.help-tabs {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.help-tabs button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.help-tabs button[aria-selected="true"] {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--ink);
+}
+
+@media (hover: hover) {
+  .help-tabs button:hover {
+    color: var(--ink);
+  }
+  .help-close:hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+.help-page {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.help-page h2 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.help-page h3 {
+  margin: 18px 0 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.help-page p {
+  margin: 0 0 10px;
+}
+
+.help-page ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.help-page strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.help-scale,
+.help-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 6px 0 12px;
+}
+
+.help-scale dt {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.help-scale dd,
+.help-keys dd {
+  margin: 0;
+}
+
+.help-keys dt {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.help-keys kbd {
+  margin-right: 2px;
+}
+
+.help-touch {
+  color: var(--ink-faint);
+}
+
+.scene[data-touch="true"] .help-button kbd {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .panel.help {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    height: min(86vh, 720px);
+    padding: 14px 14px 16px;
+  }
+
+  .help-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .help-tabs button {
+    flex: none;
+  }
+}
+
+/* Phones: the dialog takes nearly the whole screen. */
+@media (max-width: 640px) {
+  .place-dialog {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    border-radius: 14px;
+  }
+
+  .place-head {
+    padding: 14px 12px 10px 16px;
+  }
+
+  .place-intro {
+    font-size: 12px;
+  }
+
+  .search {
+    margin: 0 16px 10px;
+  }
+
+  .place-foot {
+    padding: 10px 12px 12px 16px;
+  }
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<script type="importmap">
+{
+  "imports": {
+    "astronomy-engine": "https://esm.sh/astronomy-engine@2.1.19",
+    "astronomy-engine/": "https://esm.sh/astronomy-engine@2.1.19/",
+    "gsap": "https://esm.sh/gsap@3.15.0",
+    "gsap/": "https://esm.sh/gsap@3.15.0/",
+    "three": "https://esm.sh/three@0.186.1",
+    "three/": "https://esm.sh/three@0.186.1/"
+  }
+}
+</script>
+</head>
+<body><h1>Stargazer</h1>
+<p>Stand anywhere on Earth at any hour and see the night sky as it would really look from there: the stars your eyes or instrument could pick out through that night’s light pollution, moonlight, twilight, haze and clouds.</p>
+<h2>Usage</h2>
+<ul>
+<li><strong>Look around:</strong> drag the sky, or hold the arrow keys. A flick keeps turning and slows to a stop.</li>
+<li><strong>Walk:</strong> W A S D to move at any time, Shift to run; the ground carries you over its rises and falls, and water, rocks and trunks stop you. A click on the sky captures the mouse for first-person looking around the crosshair (then a click picks what is under the cross, Esc lets go); on touch screens a thumbstick is always there, pushed to the edge to run.</li>
+<li><strong>Headlamp:</strong> the lamp in the toolbar, or F, steps a red headlamp through broad (a wide flood at your feet), spot (a tight beam that reaches 20 to 30 metres), thrower (a narrow beam that carries a few hundred metres), floodlight (a bright, wide wash over everything around you) and low, then off. Red light keeps dark-adapted eyes as they are, so the sky does not change. Its settings are <code>headlamp.modes</code> in <code>config.js</code>.</li>
+<li><strong>Choose where to stand:</strong> a first visit starts on Mauna Kea, Hawaii, with the place dialog open (choose a place or <strong>Start here</strong>); the place is kept in the browser, so later visits start there. In the game, <strong>Places</strong> (bottom left; <strong>Other places</strong> at the top on phones) or M opens the dialog: the night Earth turned to where you stand. Drag to spin it; tap or click to zoom in level by level; the wheel, a pinch or the + and − buttons zoom too. Tap a spot to see its name and sky brightness, then <strong>Stargaze here</strong>. Pins mark certified dark-sky places. The search box takes any place name or coordinates (<code>-24.63, -70.40</code> or <code>24.63 S 70.40 W</code>), spins the globe there and lands you. Esc or the close button goes back to the sky.</li>
+<li><strong>Time:</strong> the timeline at the top right spans the night from 4 PM to 8 AM; its track shows daylight, twilight and full dark, a band marks the hours the Moon is up, and it says when full dark begins and ends. Its date opens the date, <strong>Tonight</strong> and <strong>Now</strong>. (<strong>Tonight</strong> picks the first full dark, after moonset when the Moon sets before dawn. <strong>Now</strong> follows the clock.)</li>
+<li><strong>Instrument:</strong> the hotbar along the bottom, or keys 1 to 5 (each shows the faintest star it reaches): naked eye, handheld 10×50 binoculars that sway in the hands, 25×100 binoculars on a tripod, an 80 mm refractor and a 200 mm Dobsonian, each seen through its own upright eyepiece field; + and − (or the wheel, or the control above the hotbar) change a telescope’s eyepiece. Famous objects appear as real photographs at their true size, loaded when you turn toward them and freed once well out of view, as bright and colorful as that sky and instrument allow. Tripod binoculars and telescopes are set up on flat, dry, open ground where you stand, and aimed by dragging or the arrow keys; walking steps away from them and pressing their number nearby steps back. R (or the telescope’s slot again) sights along a telescope’s red-dot finder. The first time in a visit an instrument needs a larger star set, an offer opens above the hotbar with its size, and goes when you look around or walk; the menu’s catalog list has every download, and says which cannot be had here.</li>
+<li><strong>Why the sky looks as it does:</strong> a banner under the heading names daylight, cloud, twilight, a bright Moon or city lights when they hide the stars, with one thing to do: jump to the hour it clears, full dark or moonset, or find a darker place.</li>
+<li><strong>Sky conditions:</strong> the toolbar’s sky (it shows the cloud cover). Live weather and haze from Open-Meteo and the light pollution atlas; move a slider to set your own, <strong>Use live</strong> to go back.</li>
+<li><strong>Sky guides:</strong> the rail down the left, each with its key: G constellations, P planets (each ringed; the list beside it says where to find each one), I star details on tap, V faint stars (marks every star in view that this sky hides); tapping the sky again closes the details. Constellations show only the parts of their figures whose stars this sky shows above the land, and a figure only while enough is left to recognize; pointing at one (with the mouse or the crosshair) lights it up and shows a card: its name, where it is, what it does tonight, and its neighbours; tapping it keeps the card, a neighbour turns you to it, and Esc lets it go.</li>
+<li><strong>Help:</strong> <strong>Help</strong> (bottom left) or ? opens a guide to the sky, the numbers (magnitudes, NELM and LM, mag/arcsec²), instruments, catalogs, the ways to play and the controls.</li>
+<li><strong>Star catalog:</strong> the sky line names the catalog in use (naked-eye HYG, full Tycho-2, deep Gaia) and where it stops; click it, <strong>Stars</strong> in the toolbar, or the menu, to download or switch catalogs at any time.</li>
+<li><strong>Ways to play:</strong> <strong>Menu</strong> (bottom left, or Esc) picks explore (the sky with its guides) or the field game (no guides; a logbook of targets to find in the real sky, weather and land, each logged by holding it in view for points; L opens the logbook), and assists: no trees, flat horizon, clear skies, steady optics (each a quarter off the game’s points). All are kept in the browser.</li>
+<li><strong>Draw:</strong> <strong>Draw</strong> in the toolbar (or C): click star to star to draw lines; Enter lifts the pen, Backspace undoes, Save names and keeps the figure in the sky. A figure that traces a real constellation is named for it, and in the field game scores once. Awards and your figures are in the menu.</li>
+<li><strong>Sound:</strong> <strong>Sound</strong> in the toolbar plays the place, quietly, by its water, its land, its region and the night: surf, a river, lapping water, frogs, crickets, the region’s night birds and animals in their season, and wind only once the ear could hear it (rustling leaves and grass first, then wind at the ear, then a gale’s howl).</li>
+<li><strong>Opening a certain way:</strong> add <code>lat</code>, <code>lon</code>, <code>date</code>, <code>time</code>, <code>az</code>, <code>alt</code>, <code>instrument</code>, <code>mode</code>, <code>guides</code>, <code>faint</code>, <code>lamp</code>, <code>clouds</code>, <code>humidity</code>, <code>haze</code>, <code>brightness</code>, <code>ground</code>, <code>view=globe</code> (opens the place dialog), <code>zoom</code> or <code>exposure</code> (1 is the eye’s; more is a photograph’s longer exposure, for a picture of the pen) to the address (see the workspace README for values).</li>
+<li><strong>Keyboard:</strong> W A S D walk, Shift runs, 1 to 5 pick a way of seeing, + and − a telescope’s eyepiece, R its finder, G P I V the guides, L the logbook, C draw, F the lamp, M other places; Tab reaches every control; Esc closes a panel or a star’s details, lets the mouse go, or else opens the menu; ? opens help. On the globe, arrows spin, + and − zoom, and Enter lands on the marked spot.</li>
+</ul>
+<h2>File map</h2>
+<ul>
+<li><code>index.html</code> — page, controls, panels and every template.</li>
+<li><code>styles.css</code> — interface: the HUD (heading strip, place and sky, timeline, guides rail, hotbar, toolbar, banner, crosshair), panels, cards, the place dialog and its globe, labels.</li>
+<li><code>main.js</code> — the sky scene, looking around, state, panels and wiring.</li>
+<li><code>components.js</code> — panels and idle fading, the globe (drawn on its own canvas in the place dialog), search, the ground, the soundscape.</li>
+<li><code>game.js</code> — what is kept in the browser (way to play, assists, progress), each write backing up the value it replaces.</li>
+<li><code>shaders.js</code> — sky model (GLSL), sky dome, stars, Moon, globe, ground, water, guides.</li>
+<li><code>utils.js</code> — astronomy, time zones, the visibility model, geometry helpers.</li>
+<li><code>api.js</code> — star lists, atlas, weather, places, terrain, map tiles.</li>
+<li><code>land.js</code> — what covers the land and where its water lies, read from map tiles around the site.</li>
+<li><code>snow.js</code> — the snow on the ground on the date, from NASA’s MODIS snow maps.</li>
+<li><code>mvt.js</code> — a small reader for vector map tiles.</li>
+<li><code>state.js</code> — the store.</li>
+<li><code>data.js</code> — places, instruments, grounds, atlas zones, planets, guides, sounds, field targets, copy.</li>
+<li><code>config.js</code> — every tunable value.</li>
+</ul>
+<h2>Customizing</h2>
+<ul>
+<li><strong>Data (<code>data.js</code>):</strong> add a dark-sky place to <code>darkSkyPlaces</code>, an instrument to <code>instruments</code> (aperture, magnification, transmission and a practical loss set its reach; its true field, mount, set-up time and eyepiece set how it looks and handles), or a kind of land to <code>covers</code> (a Poly Haven texture, its color from afar, what grows close by, its trees and how many to a hectare, sounds; <code>rustle</code> says how loudly it rustles in wind, and <code>nightCalls</code> with <code>regions</code> which animals call there; <code>landCover</code> maps MODIS classes to it, and <code>osmCover</code> in <code>land.js</code> maps OpenStreetMap’s).</li>
+<li><strong>Tuning (<code>config.js</code>):</strong> <code>visibility</code> holds the sky model (natural sky brightness, extinction terms, cloud dimming); <code>stars</code> sets how stars are drawn (sizes, color, twinkle, how instrument-only stars thin out); <code>sky.display</code> is the screen brightness of a dark sky; <code>terrain</code> sets the horizon’s reach; <code>land</code> sets where land cover and water are read from and how finely; <code>walk</code> sets walking and running speeds, mouse sensitivity and how often the land is rebuilt around the walker; <code>headlamp</code> sets the lamp’s candela, beam angles and tilt; <code>pictures</code> sets how bright and colorful the pictures of famous objects show, how far and how long out of view before one is freed, the seeing and the in-detail bonus; <code>drawing</code> sets how near a click takes a star, when a drawing counts as a constellation and its points; <code>game</code> sets what assists cost, how long a target is held and how near the center; <code>optics</code> sets the eyepiece circle, hand sway, how mounts ring and shake in wind, and where equipment can stand; <code>globe.levels</code> are the zoom steps; <code>renderer.maxPixels</code> caps the drawing buffer.</li>
+<li><strong>Asset files</strong> live beside the pen in <code>assets/</code> and are rebuilt by the workspace tools: <code>fetch-stars.mjs</code> (star lists, names, constellation figures), <code>build-maps.py</code> (light pollution grid, night Earth at 8K for desktops and 4K for phones), <code>fetch-assets.mjs</code> (ground textures and models), <code>build-trees.mjs</code> with <code>bake-trees.html</code> (each scanned tree drawn from eight sides into <code>assets/trees/</code>, and with <code>&amp;bare</code> its winter branches), <code>build-sounds.py</code> (sound loops), <code>build-objects.py</code> (pictures of famous objects). Star lists are fetched, never committed.</li>
+</ul>
+<h2>Dependencies</h2>
+<ul>
+<li><code>three</code> 0.186.1 — rendering.</li>
+<li><code>astronomy-engine</code> 2.1.19 — positions of the sky, Sun, Moon and planets; rise, set and twilight.</li>
+<li><code>gsap</code> 3.15.0 — the fade-in, the globe’s flights and panel motion.</li>
+</ul>
+<h2>Accessibility and devices</h2>
+<p>Every control is a native button, switch, slider or input with a label, reachable by keyboard with a visible focus ring. With reduced motion on, stars do not twinkle, flicks do not coast, clouds do not drift and transitions are near-instant. Built mobile-first for iPhone and Android in portrait and landscape, iPad and desktop; the deep star set is desktop only.</p>
+<h2>Credits</h2>
+<ul>
+<li><strong>Stars:</strong> HYG Database v4 (CC BY-SA 4.0) by David Nash, with proper names; Tycho-2 (Høg et al. 2000) via VizieR; Gaia DR3 (ESA/Gaia/DPAC, CC BY-SA 3.0 IGO).</li>
+<li><strong>Constellations:</strong> figures and names from d3-celestial by Olaf Frohn (BSD 3-Clause).</li>
+<li><strong>Milky Way and night Earth:</strong> NASA/Goddard Scientific Visualization Studio Deep Star Maps 2020 (public domain); NASA Earth Observatory Black Marble 2016; VIIRS Black Marble tiles from NASA GIBS (public domain).</li>
+<li><strong>Moon:</strong> NASA SVS CGI Moon Kit (public domain).</li>
+<li><strong>Light pollution:</strong> Light Pollution Atlas 2025 by David Lorenz, recalculated from Cinzano and Falchi’s world atlas; used as his site permits, with its values given as sky brightness, never as Bortle classes.</li>
+<li><strong>Terrain:</strong> Terrain Tiles on AWS Open Data (Mapzen), from SRTM, GMTED2010, ETOPO1, NED and other public sources.</li>
+<li><strong>Land and water:</strong> © OpenStreetMap contributors (ODbL), as OpenMapTiles vector tiles served by OpenFreeMap; NASA MODIS land cover (MCD12Q1), MODIS/Terra snow cover (MOD10A1 daily, MOD10A2 8-day and the monthly average) and the OpenStreetMap land/water map, via NASA GIBS.</li>
+<li><strong>Weather and places:</strong> Open-Meteo (CC BY 4.0) for forecasts, history, air quality and place search; BigDataCloud for place names.</li>
+<li><strong>Ground:</strong> textures, scanned plants, rocks and trees from Poly Haven (CC0). Wave normals from the three.js examples (MIT).</li>
+<li><strong>Sound (Wikimedia Commons):</strong> “Ocean Waves on a Tropical Beach” by Jarrod Stanley (CC0); stream recording by jackthemurray (CC0); “Howling wind” by Tvabutzku1234 (CC0), softened into a breeze and into gusts; “Tettigonia cantans” by Vladimir Yu. Arkhipov (CC BY 3.0); “Water on Rocks” by Dsw4 (CC BY 3.0); “Strix aluco - Tawny Owl” (XC534183) by Antonio (CC BY-SA 4.0); “Frogs croak calling chorus at night” by JogiAsad (CC BY-SA 4.0); “Leaves in the wind” by Gravity Sound (CC BY 4.0); “Bubo virginianus - Great Horned Owl” (XC428421) by Jonathon Jongsma (CC BY-SA 4.0); “Pack of coyotes howling” by Rybkovich (CC BY-SA 4.0); “Wolf howls” (public domain); “Whip-poor-will” by G. McGrane (public domain); “Caprimulgus europaeus - European Nightjar” (XC457410) by Hannu Varkki (CC BY-SA 4.0); “Ninox boobook - Southern Boobook” (XC442607) by James Ray (CC BY-SA 4.0); fiery-necked nightjar at Moreleta Kloof and black-backed jackal at Skeerpoort by JMK (CC BY-SA 4.0); “Ninox scutulata - Brown Hawk-Owl” (XC382468) by Manoj Karingamadathil (CC BY-SA 4.0).</li>
+<li><strong>Pictures (Wikimedia Commons):</strong> Orion Nebula mosaic by NASA, ESA, M. Robberto and the Hubble Orion Treasury Project Team; the Andromeda Galaxy by Adam Evans (CC BY 2.0); the Whirlpool Galaxy by NASA, ESA, S. Beckwith and the Hubble Heritage Team; the Ring Nebula by NASA, ESA and the Hubble Heritage Collaboration; the Hercules Cluster by Thedarksideobservatory (CC BY-SA 4.0); Omega Centauri by ESO/INAF-VST/OmegaCAM (CC BY 4.0); the Lagoon Nebula by ESO/S. Guisard (CC BY 4.0); Jupiter by NASA, ESA and A. Simon; Saturn by NASA, ESA, A. Simon and M.H. Wong; Mars by NASA, ESA, the Hubble Heritage Team, J. Bell and M. Wolff (CC BY 4.0). Public domain unless marked.</li>
+<li><strong>Visibility model:</strong> Schaefer (1990) limiting magnitude; Krisciunas and Schaefer (1991) moonlight; Kasten and Young (1989) air mass.</li>
+<li><strong>Fonts:</strong> Jost and Cormorant Garamond (SIL Open Font License).</li>
+</ul>
+</body>
+</html>
